@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker</title>
+    <link rel="icon" type="image/svg+xml" href="icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <button id="theme-toggle-btn" class="theme-toggle" title="Toggle Light/Dark Mode">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <div class="header-content">
+                <h1><i class="fa-solid fa-shapes"></i>Habit Tracker</h1>
+                <p class="subtitle">Track, analyze, and dominate your daily routines.</p>
+            </div>
+
+            <div class="controls-wrapper">
+                <div class="date-controls">
+                    <select id="month-select" title="Select Month">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                    <input type="number" id="year-select" min="2000" max="2100" value="2026" title="Type Year">
+                </div>
+
+                <div class="add-habit-controls">
+                    <input type="text" id="new-habit-input" placeholder="Type a new task...">
+                    <button id="add-habit-btn"><i class="fa-solid fa-plus"></i> Add</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="tracker-card">
+            <div class="table-responsive">
+                <table id="tracker-table">
+                    <thead>
+                        <tr id="week-row"></tr>
+                        <tr id="day-row"></tr>
+                    </thead>
+                    <tbody id="habit-body"></tbody>
+                    <tfoot id="tracker-foot"></tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="streak-wrapper">
+            <div class="streak-card current-streak-card">
+                <div class="streak-icon"><i class="fa-solid fa-fire-flame-curved"></i></div>
+                <div class="streak-info">
+                    <div class="streak-label">Current Streak</div>
+                    <div class="streak-value" id="current-streak">0 Days</div>
+                </div>
+            </div>
+            <div class="streak-card best-streak-card">
+                <div class="streak-icon"><i class="fa-solid fa-trophy"></i></div>
+                <div class="streak-info">
+                    <div class="streak-label">Longest Streak</div>
+                    <div class="streak-value" id="longest-streak">0 Days</div>
+                </div>
+            </div>
+            <div class="streak-card completion-streak-card">
+                <div class="streak-icon"><i class="fa-solid fa-calendar-check"></i></div>
+                <div class="streak-info">
+                    <div class="streak-label">Perfect Days</div>
+                    <div class="streak-value" id="perfect-days">0 Days</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="chart-card line-chart-container">
+                <h3 class="chart-title"><i class="fa-solid fa-chart-area"></i> Performance Measure</h3>
+                <div class="canvas-wrapper">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card donut-chart-container">
+                <h3 class="chart-title"><i class="fa-solid fa-circle-notch"></i> Completion Rate</h3>
+                <div class="canvas-wrapper">
+                    <canvas id="donutChart"></canvas>
+                    <div class="donut-inner-text">
+                        <div id="progress-percentage-display">0%</div>
+                        <div id="progress-numbers-display">0 / 0 Tasks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-bottom">
+            <div class="chart-card sleep-chart-container">
+                <h3 class="chart-title"><i class="fa-solid fa-bed"></i> Sleep</h3>
+                <div class="canvas-wrapper">
+                    <canvas id="sleepChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card mood-chart-container">
+                <h3 class="chart-title"><i class="fa-solid fa-face-smile"></i> Mood Performance</h3>
+                <div class="canvas-wrapper">
+                    <canvas id="moodChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="sticky-note-container">
+            <h3 class="chart-title"><i class="fa-solid fa-note-sticky"></i> Sticky Note</h3>
+            <div class="note-toolbar">
+                <button type="button" class="format-btn" data-command="bold" title="Bold"><i
+                        class="fa-solid fa-bold"></i></button>
+                <button type="button" class="format-btn" data-command="italic" title="Italic"><i
+                        class="fa-solid fa-italic"></i></button>
+                <button type="button" class="format-btn" data-command="underline" title="Underline"><i
+                        class="fa-solid fa-underline"></i></button>
+                <button type="button" class="format-btn" data-command="strikethrough" title="Strikethrough"><i
+                        class="fa-solid fa-strikethrough"></i></button>
+                <button type="button" class="format-btn" id="overline-btn" title="Overline"><span
+                        style="text-decoration: overline; font-weight: bold; font-size: 14px;">O</span></button>
+                <button type="button" class="format-btn" data-command="insertUnorderedList" title="Bullet List"><i
+                        class="fa-solid fa-list-ul"></i></button>
+            </div>
+            <div id="sticky-note" class="sticky-note-editor" contenteditable="true"
+                placeholder="Write your notes here..."></div>
+            <div class="note-actions">
+                <button id="save-note-btn" class="note-btn save"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                <button id="clear-note-btn" class="note-btn clear"><i class="fa-solid fa-eraser"></i> Clear</button>
+            </div>
+        </div>
+
+        <div class="danger-zone">
+            <h3 class="danger-title"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</h3>
+            <p class="danger-description">Actions here cannot be undone. Please be careful.</p>
+            <div class="danger-buttons">
+                <button id="clear-month-btn" class="danger-btn"><i class="fa-solid fa-calendar-xmark"></i> Clear Month
+                    Data</button>
+                <button id="clear-all-btn" class="danger-btn extreme"><i class="fa-solid fa-dumpster-fire"></i> Factory
+                    Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 HabitTracker. Built for focus and productivity.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

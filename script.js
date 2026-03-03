@@ -116,6 +116,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function isPastDate(dIndex) {
+        const now = new Date();
+        const cellDate = new Date(currentYear, currentMonth, dIndex + 1);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return cellDate < today;
+    }
+
     window.deleteHabit = (hIndex) => {
         trackerData.splice(hIndex, 1);
         saveData();
@@ -123,12 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.toggleDay = (hIndex, dIndex) => {
+        if (isPastDate(dIndex)) return;
         trackerData[hIndex].days[dIndex] = !trackerData[hIndex].days[dIndex];
         saveData();
         renderTable();
     };
 
     window.updateHours = (dIndex, val) => {
+        if (isPastDate(dIndex)) {
+            renderTable();
+            return;
+        }
         let trimmed = val.trim();
         if (trimmed === "") {
             hoursSlept[dIndex] = 0;
@@ -152,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.cycleMood = (dIndex) => {
+        if (isPastDate(dIndex)) return;
         dailyMoods[dIndex] = (dailyMoods[dIndex] + 1) % 4;
         saveData();
 
@@ -224,11 +237,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const td = document.createElement('td');
+                const isPast = isPastDate(dIndex);
                 td.className = `checkbox-cell ${isDone ? 'checked' : ''}`;
                 td.innerHTML = `
-                    <label class="custom-checkbox">
-                        <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleDay(${hIndex}, ${dIndex})">
-                        <div class="checkmark"></div>
+                    <label class="custom-checkbox" style="${isPast ? 'cursor: not-allowed; opacity: 0.5;' : ''}">
+                        <input type="checkbox" ${isDone ? 'checked' : ''} ${isPast ? 'disabled' : ''} onchange="toggleDay(${hIndex}, ${dIndex})">
+                        <div class="checkmark" style="${isPast ? 'pointer-events: none;' : ''}"></div>
                     </label>
                 `;
                 tr.appendChild(td);
@@ -277,10 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
         hoursTr.innerHTML = `<td class="habit-name"><div class="habit-title">Sleep</div></td>`;
         hoursSlept.forEach((hours, dIndex) => {
             const hStr = hours === 0 ? '' : hours;
+            const isPast = isPastDate(dIndex);
             hoursTr.innerHTML += `
                 <td>
                     <input type="number" class="hours-input" value="${hStr}" 
-                           min="0" max="24"
+                           min="0" max="24" ${isPast ? 'disabled' : ''}
+                           style="${isPast ? 'cursor: not-allowed; opacity: 0.5;' : ''}"
                            onchange="updateHours(${dIndex}, this.value)">
                 </td>
             `;
@@ -292,8 +308,12 @@ document.addEventListener('DOMContentLoaded', () => {
         moodTr.innerHTML = `<td class="habit-name"><div class="habit-title">Mood</div></td>`;
         const emojis = ['<span style="opacity:0.2">-</span>', '\uD83D\uDE21', '\uD83D\uDE1E', '\uD83D\uDE00'];
         dailyMoods.forEach((mood, dIndex) => {
+            const isPast = isPastDate(dIndex);
             moodTr.innerHTML += `
-                <td class="mood-cell" onclick="cycleMood(${dIndex})" title="Click to change mood">
+                <td class="mood-cell" 
+                    ${isPast ? '' : `onclick="cycleMood(${dIndex})"`} 
+                    style="${isPast ? 'cursor: not-allowed; opacity: 0.5;' : 'cursor: pointer;'}"
+                    title="${isPast ? 'Passed day' : 'Click to change mood'}">
                     ${emojis[mood]}
                 </td>
             `;

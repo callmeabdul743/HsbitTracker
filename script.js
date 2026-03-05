@@ -29,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let trackerData = [];
     let hoursSlept = [];
     let dailyMoods = [];
+    let dailyNotes = [];
+    let currentDailyNoteIndex = -1;
 
     const monthSelect = document.getElementById('month-select');
     const yearSelect = document.getElementById('year-select');
@@ -59,10 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
             trackerData = parsed.trackerData || [];
             hoursSlept = parsed.hoursSlept || Array(daysInMonth).fill(0);
             dailyMoods = parsed.dailyMoods || Array(daysInMonth).fill(0);
+            dailyNotes = parsed.dailyNotes || Array(daysInMonth).fill('');
         } else {
             trackerData = [];
             hoursSlept = Array(daysInMonth).fill(0);
             dailyMoods = Array(daysInMonth).fill(0);
+            dailyNotes = Array(daysInMonth).fill('');
         }
     }
 
@@ -70,7 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(getStorageKey(), JSON.stringify({
             trackerData,
             hoursSlept,
-            dailyMoods
+            dailyMoods,
+            dailyNotes
         }));
     }
 
@@ -180,6 +185,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.openDailyNote = (dIndex) => {
+        const dateObj = new Date(currentYear, currentMonth, dIndex + 1);
+        const shortDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        document.getElementById('daily-note-title').innerHTML = `<i class="fa-solid fa-calendar-day"></i> Routine for ${dIndex + 1} ${shortDays[dateObj.getDay()]}`;
+
+        const isPast = isPastDate(dIndex);
+        const editor = document.getElementById('daily-note-editor');
+        const toolbar = document.getElementById('daily-note-toolbar');
+        const actions = document.getElementById('daily-note-actions');
+
+        editor.innerHTML = dailyNotes[dIndex] || '';
+
+        if (isPast) {
+            editor.contentEditable = "false";
+            editor.classList.add('daily-readonly');
+            toolbar.style.display = 'none';
+            actions.style.display = 'none';
+        } else {
+            editor.contentEditable = "true";
+            editor.classList.remove('daily-readonly');
+            toolbar.style.display = 'flex';
+            actions.style.display = 'flex';
+        }
+
+        currentDailyNoteIndex = dIndex;
+        document.getElementById('daily-note-modal').classList.add('active');
+    };
+
     function refreshApp() {
         loadData();
         renderTableHeaders();
@@ -201,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dateObj = new Date(currentYear, currentMonth, d);
             const initial = dayNames[dateObj.getDay()];
             dayRow.innerHTML += `
-                <th>
+                <th class="day-header" onclick="openDailyNote(${d - 1})" title="Click to view/edit routine">
                     <div>${d}</div>
                     <div class="day-label">${initial}</div>
                 </th>`;
@@ -815,6 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
             trackerData = [];
             hoursSlept = Array(daysInMonth).fill(0);
             dailyMoods = Array(daysInMonth).fill(0);
+            dailyNotes = Array(daysInMonth).fill('');
             saveData();
             refreshApp();
         }
@@ -836,6 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
             trackerData = [];
             hoursSlept = Array(daysInMonth).fill(0);
             dailyMoods = Array(daysInMonth).fill(0);
+            dailyNotes = Array(daysInMonth).fill('');
             refreshApp();
         }
     });
@@ -889,6 +924,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             stickyNote.focus();
+        });
+    });
+
+    // Daily Note Modal Logic
+    const dailyNoteModal = document.getElementById('daily-note-modal');
+    const closeDailyNoteBtn = document.getElementById('close-daily-note-btn');
+    const saveDailyNoteBtn = document.getElementById('save-daily-note-btn');
+
+    closeDailyNoteBtn.addEventListener('click', () => {
+        dailyNoteModal.classList.remove('active');
+    });
+
+    dailyNoteModal.addEventListener('click', (e) => {
+        if (e.target === dailyNoteModal) {
+            dailyNoteModal.classList.remove('active');
+        }
+    });
+
+    saveDailyNoteBtn.addEventListener('click', () => {
+        if (currentDailyNoteIndex !== -1) {
+            const editor = document.getElementById('daily-note-editor');
+            dailyNotes[currentDailyNoteIndex] = editor.innerHTML;
+            saveData();
+
+            const originalText = saveDailyNoteBtn.innerHTML;
+            saveDailyNoteBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+            setTimeout(() => {
+                saveDailyNoteBtn.innerHTML = originalText;
+                dailyNoteModal.classList.remove('active');
+            }, 1000);
+        }
+    });
+
+    const dailyFormatBtns = document.querySelectorAll('.daily-format-btn');
+    dailyFormatBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const command = btn.dataset.command;
+            const editor = document.getElementById('daily-note-editor');
+
+            if (command) {
+                document.execCommand(command, false, null);
+            } else if (btn.id === 'daily-overline-btn') {
+                const selection = window.getSelection();
+                if (!selection.isCollapsed) {
+                    const span = document.createElement('span');
+                    span.style.textDecoration = 'overline';
+                    const range = selection.getRangeAt(0);
+                    const contents = range.extractContents();
+                    span.appendChild(contents);
+                    range.insertNode(span);
+                    selection.removeAllRanges();
+                }
+            }
+            editor.focus();
         });
     });
 

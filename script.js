@@ -233,11 +233,33 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let d = 1; d <= daysInMonth; d++) {
             const dateObj = new Date(currentYear, currentMonth, d);
             const initial = dayNames[dateObj.getDay()];
-            dayRow.innerHTML += `
-                <th class="day-header" onclick="openDailyNote(${d - 1})" title="Click to view/edit routine">
-                    <div>${d}</div>
-                    <div class="day-label">${initial}</div>
-                </th>`;
+
+            const dIndex = d - 1;
+            let tasksCompleted = 0;
+            if (trackerData && trackerData.length > 0) {
+                trackerData.forEach(h => {
+                    if (h.days[dIndex]) tasksCompleted++;
+                });
+            }
+            let note = dailyNotes[dIndex] || '';
+            let noteText = note.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, '').trim();
+            let hasNote = noteText !== '';
+            let isEmptyPast = isPastDate(dIndex) && tasksCompleted === 0 && !hasNote;
+
+            if (isEmptyPast) {
+                dayRow.innerHTML += `
+                    <th class="day-header empty-past-day" title="No record for this day">
+                        <div>${d}</div>
+                        <div class="day-label">${initial}</div>
+                    </th>`;
+            } else {
+                let highlightClass = hasNote ? 'has-note' : '';
+                dayRow.innerHTML += `
+                    <th class="day-header ${highlightClass}" onclick="openDailyNote(${dIndex})" title="Click to view/edit routine">
+                        <div>${d}</div>
+                        <div class="day-label">${initial}</div>
+                    </th>`;
+            }
         }
     }
 
@@ -947,6 +969,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const editor = document.getElementById('daily-note-editor');
             dailyNotes[currentDailyNoteIndex] = editor.innerHTML;
             saveData();
+
+            renderTableHeaders();
+            renderTable();
 
             const originalText = saveDailyNoteBtn.innerHTML;
             saveDailyNoteBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';

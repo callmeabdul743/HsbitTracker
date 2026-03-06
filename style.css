@@ -342,6 +342,28 @@ tr:hover td {
     margin-top: 2px;
 }
 
+.empty-past-day {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+    background: repeating-linear-gradient(45deg,
+            transparent,
+            transparent 5px,
+            var(--hover-bg) 5px,
+            var(--hover-bg) 10px) !important;
+    color: var(--danger) !important;
+}
+
+.day-header.has-note {
+    background: var(--bg-gradient-2);
+    border-bottom: 2px solid var(--success);
+    color: var(--success);
+}
+
+.day-header.has-note .day-label {
+    opacity: 1;
+    font-weight: 700;
+}
+
 .prog-text {
     font-size: clamp(9px, 1.1vw, 13px);
     margin-bottom: 4px;

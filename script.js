@@ -273,12 +273,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let dailyTotals = Array(daysInMonth).fill(0);
-        let totalPossible = trackerData.length * daysInMonth;
+        let expectedTasksPerDay = Array(daysInMonth).fill(0);
 
         trackerData.forEach((habit, hIndex) => {
             const tr = document.createElement('tr');
             tr.style.animation = `fadeSlideIn ${0.05 * hIndex}s ease forwards`;
             tr.style.opacity = '0';
+
+            let endDayStr = (habit.completedOnDay !== undefined && habit.completedOnDay !== null) ? habit.completedOnDay : daysInMonth - 1;
+            for(let d=0; d<=endDayStr; d++) expectedTasksPerDay[d]++;
 
             const tdName = document.createElement('td');
             tdName.className = 'habit-name';
@@ -293,27 +296,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const td = document.createElement('td');
                 const isPast = isPastDate(dIndex);
+                const isAfterCompletion = (habit.completedOnDay !== undefined && habit.completedOnDay !== null && dIndex > habit.completedOnDay);
+                const isDisabled = isPast || isAfterCompletion;
+                
                 td.className = `checkbox-cell ${isDone ? 'checked' : ''}`;
                 td.innerHTML = `
-                    <label class="custom-checkbox" style="${isPast ? 'cursor: not-allowed; opacity: 0.5;' : ''}">
-                        <input type="checkbox" ${isDone ? 'checked' : ''} ${isPast ? 'disabled' : ''} onchange="toggleDay(${hIndex}, ${dIndex})">
-                        <div class="checkmark" style="${isPast ? 'pointer-events: none;' : ''}"></div>
+                    <label class="custom-checkbox" style="${isDisabled ? 'cursor: not-allowed; opacity: 0.5;' : ''}" title="${isAfterCompletion ? 'Disabled after task completion' : ''}">
+                        <input type="checkbox" ${isDone ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="${isAfterCompletion ? '' : `toggleDay(${hIndex}, ${dIndex})`}">
+                        <div class="checkmark" style="${isDisabled ? 'pointer-events: none;' : ''}"></div>
                     </label>
                 `;
                 tr.appendChild(td);
             });
 
-            // Calculate percentage dynamically for tasks column
-            const percent = daysInMonth === 0 ? 0 : Math.round((completedDays / daysInMonth) * 100);
+            const habitTotalDays = (habit.completedOnDay !== undefined && habit.completedOnDay !== null) ? (habit.completedOnDay + 1) : daysInMonth;
+            const percent = habitTotalDays === 0 ? 0 : Math.round((completedDays / habitTotalDays) * 100);
+            const isCompleted = habit.completedOnDay !== undefined && habit.completedOnDay !== null;
+            
             tdName.innerHTML = `
-                <div class="habit-title" title="${habit.name}">${habit.name}</div>
+                <div class="habit-title-wrapper">
+                    <label class="custom-checkbox habit-complete-checkbox" title="${isCompleted ? 'Task completed early. Click to revert.' : 'Mark task as fully completed early'}">
+                        <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="toggleHabitCompletion(${hIndex})">
+                        <div class="checkmark"></div>
+                    </label>
+                    <div class="habit-title" title="${habit.name}">${habit.name}</div>
+                </div>
                 <div class="habit-percent">${percent}%</div>
             `;
 
             const tdProg = document.createElement('td');
             tdProg.className = 'progress-cell';
             tdProg.innerHTML = `
-                <div class="prog-text">${completedDays}/${daysInMonth}</div>
+                <div class="prog-text">${completedDays}/${habitTotalDays}</div>
                 <div class="prog-bar-mini"><div class="prog-fill" style="width:${percent}%"></div></div>
             `;
             tr.appendChild(tdProg);
@@ -326,14 +340,16 @@ document.addEventListener('DOMContentLoaded', () => {
             habitBody.appendChild(tr);
         });
 
+        let totalPossible = expectedTasksPerDay.reduce((a, b) => a + b, 0);
         const totalCompleted = dailyTotals.reduce((a, b) => a + b, 0);
 
         trackerFoot.innerHTML = '';
 
         const totalTr = document.createElement('tr');
         totalTr.innerHTML = `<td class="habit-name"><div class="habit-title">Total</div></td>`;
-        dailyTotals.forEach(total => {
-            if (total === trackerData.length && trackerData.length !== 0) {
+        dailyTotals.forEach((total, dIndex) => {
+            let expected = expectedTasksPerDay[dIndex];
+            if (total === expected && expected !== 0) {
                 totalTr.innerHTML += `<td class="perfect-day">${total}</td>`;
             } else {
                 totalTr.innerHTML += `<td>${total}</td>`;
@@ -377,8 +393,33 @@ document.addEventListener('DOMContentLoaded', () => {
         trackerFoot.appendChild(moodTr);
 
         updateCharts(dailyTotals, totalCompleted, totalPossible);
-        updateStreaks(dailyTotals);
+        updateStreaks(dailyTotals, expectedTasksPerDay);
     }
+
+    window.toggleHabitCompletion = (hIndex) => {
+        let habit = trackerData[hIndex];
+        if (habit.completedOnDay !== undefined && habit.completedOnDay !== null) {
+            habit.completedOnDay = null;
+        } else {
+            let lastChecked = -1;
+            for (let i = daysInMonth - 1; i >= 0; i--) {
+                if (habit.days[i]) {
+                    lastChecked = i;
+                    break;
+                }
+            }
+            const now = new Date();
+            const todayIndex = now.getDate() - 1;
+            
+            if (currentYear === now.getFullYear() && currentMonth === now.getMonth()) {
+                habit.completedOnDay = Math.max(lastChecked, todayIndex);
+            } else {
+                habit.completedOnDay = lastChecked !== -1 ? lastChecked : daysInMonth - 1;
+            }
+        }
+        saveData();
+        renderTable();
+    };
 
     let lineChart, donutChart, sleepChart, moodChart;
 
@@ -576,7 +617,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         bodyFont: { size: 14, family: "'Outfit', sans-serif" },
                         padding: 12,
                         cornerRadius: 8,
-                        displayColors: false
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = [context.dataset.label + ': ' + context.raw + 'hr'];
+                                let normalHours = 8;
+                                let diff = context.raw - normalHours;
+                                label.push('Normal target: 8hr');
+                                if (context.raw === 0) {
+                                    label.push('No sleep recorded.');
+                                } else if (diff < 0) {
+                                    label.push('You should sleep ' + Math.abs(diff) + 'hr more.');
+                                } else if (diff > 0) {
+                                    label.push('You slept ' + diff + 'hr extra (should sleep ' + diff + 'hr less).');
+                                } else {
+                                    label.push('Perfect amount of sleep!');
+                                }
+                                return label;
+                            }
+                        }
                     }
                 }
             }
@@ -722,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateStreaks(dailyTotals) {
+    function updateStreaks(dailyTotals, expectedTasksPerDay) {
         let allKeys = [];
         for (let i = 0; i < localStorage.length; i++) {
             let key = localStorage.key(i);
@@ -744,12 +803,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const dims = new Date(y, m + 1, 0).getDate();
                     if (tData.length > 0) {
                         let dTotals = Array(dims).fill(0);
+                        let expTotals = Array(dims).fill(0);
                         tData.forEach(h => {
+                            let endDay = (h.completedOnDay !== undefined && h.completedOnDay !== null) ? h.completedOnDay : dims - 1;
+                            for (let i = 0; i <= endDay; i++) expTotals[i]++;
                             if (h.days) {
                                 h.days.forEach((val, i) => { if (val) dTotals[i]++ });
                             }
                         });
-                        monthRecords[`${y}-${m}`] = { dailyTotals: dTotals, habitCount: tData.length, daysInMonth: dims };
+                        monthRecords[`${y}-${m}`] = { dailyTotals: dTotals, expectedTotals: expTotals, habitCount: tData.length, daysInMonth: dims };
                     }
                 }
             }
@@ -758,6 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (trackerData && trackerData.length > 0 && dailyTotals && dailyTotals.length > 0) {
             monthRecords[`${currentYear}-${currentMonth}`] = {
                 dailyTotals: dailyTotals,
+                expectedTotals: expectedTasksPerDay,
                 habitCount: trackerData.length,
                 daysInMonth: daysInMonth
             };
@@ -796,11 +859,11 @@ document.addEventListener('DOMContentLoaded', () => {
             prevM = m;
 
             for (let i = 0; i < record.daysInMonth; i++) {
-                if (record.dailyTotals[i] === record.habitCount) {
+                if (record.dailyTotals[i] === record.expectedTotals[i] && record.expectedTotals[i] > 0) {
                     perfectCount++;
                     globalTempStreak++;
                     if (globalTempStreak > bestStreak) bestStreak = globalTempStreak;
-                } else {
+                } else if (record.expectedTotals[i] > 0) {
                     globalTempStreak = 0;
                 }
             }
@@ -831,19 +894,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let foundBreak = false;
                 for (let i = d; i >= 0; i--) {
-                    let isPerfect = (rec.dailyTotals[i] === rec.habitCount);
+                    let isPerfect = (rec.dailyTotals[i] === rec.expectedTotals[i] && rec.expectedTotals[i] > 0);
 
                     if (isFirstDayChecked) {
                         isFirstDayChecked = false;
                         let isActuallyToday = (y === now.getFullYear() && m === now.getMonth() && i === now.getDate() - 1);
-                        if (isActuallyToday && !isPerfect) {
+                        if (isActuallyToday && !isPerfect && rec.expectedTotals[i] > 0) {
                             continue;
                         }
                     }
 
                     if (isPerfect) {
                         currentStreak++;
-                    } else {
+                    } else if (rec.expectedTotals[i] > 0) {
                         foundBreak = true;
                         break;
                     }
